@@ -1,0 +1,7 @@
+vss2git.exe
+sample/*
+!sample/migrate.bat
+!sample/mk_sample_vss.rb
+!sample/git/.gitkeep
+!sample/vss/.gitkeep
+!sample/work/.gitkeep
