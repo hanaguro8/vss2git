@@ -2,7 +2,7 @@
 #
 # Author::  Hanaguro
 # License:: Open source
-# Version:: 1.00
+# Version:: 1.01
 #
 # Copyright (c) <2012-2013>, <Satoshi Hasegawa>
 # All rights reserved.
@@ -32,8 +32,8 @@ require 'time'
 require 'json'
 require 'pp'
 
-VERSION       = "1.00"
-REVISION_DATE = "2013/11/29"
+VERSION       = "1.01"
+REVISION_DATE = "2013/12/20"
 AUTHOR        = "Hanaguro"
 
 #------------------------------------------------------------------------------
@@ -171,7 +171,7 @@ module Vcs
       ex("echo #{MESSAGE_FILE}>>.gitignore")
 
       # initial commit
-      ex("git add .gitignore")
+      ex("git add *")
       commit("", Time.at(0), message)
     end
 
@@ -316,7 +316,7 @@ module Vcs
       ex("echo #{MESSAGE_FILE}>>.hgignore")
 
       # initial commit
-      ex("hg add .hgignore")
+      ex("hg add *")
       commit("", Time.at(0), message)
     end
 
@@ -467,7 +467,7 @@ module Vcs
       ex("bzr ignore *.scc")
 
       # initial commit
-      ex("bzr add .bzrignore")
+      ex("bzr add *")
       commit("", Time.at(0), message)
     end
 
@@ -671,7 +671,7 @@ class Vss
       @vssdb.Open(file, user, password)
     rescue
       raise VssError,
-        %(\nERROR: Invalid user name: #{user})
+        %(\nERROR: Invalid user name or password)
     end
 
     if @vssdb.GetSetting("Force_Dir") == "Yes"
@@ -935,19 +935,20 @@ class Vss2xxx
   # [:Version] Version number of this script
   #----------------------------------------------------------------------------
   def initialize(opt)
-    @vssdir      = opt[:Vssdir]
-    @user        = opt[:User]
-    @password    = opt[:Password]
-    @project     = opt[:Project]
-    @vcs         = opt[:Vcs]
-    @emaildomain = opt[:Emaildomain]
-    @userlist    = nil
-    @branch      = opt[:Branch]
-    @verbose     = opt[:Verbose]
-    @update      = opt[:Update]
-    @timeshift   = opt[:Timeshift]
-    @workingdir  = opt[:Workingdir]
-    @version     = opt[:Version]
+    @vssdir       = opt[:Vssdir]
+    @user         = opt[:User]
+    @password     = opt[:Password]
+    @project      = opt[:Project]
+    @vcs          = opt[:Vcs]
+    @emaildomain  = opt[:Emaildomain]
+    @userlistfile = opt[:Userlist]
+    @userlist     = nil
+    @branch       = opt[:Branch]
+    @verbose      = opt[:Verbose]
+    @update       = opt[:Update]
+    @timeshift    = opt[:Timeshift]
+    @workingdir   = opt[:Workingdir]
+    @version      = opt[:Version]
 
     # check mandatory options
     ppe_exit "ERROR: No option: -s, --vssdir" unless @vssdir
@@ -984,11 +985,11 @@ class Vss2xxx
     @emaildomain ||= "localhost"
 
     # @userlist
-    if opt[:Userlist]
-      unless File.exist?(opt[:Userlist])
-        ppe_exit "ERROR: File does not exist: (#{opt[:Userlist]})"
+    if @userlistfile
+      unless File.exist?(@userlistfile)
+        ppe_exit "ERROR: File does not exist: (#{@userlistfile})"
       end
-      File.open(opt[:Userlist], "r") do |file|
+      File.open(@userlistfile, "r") do |file|
         @userlist = JSON.load(file)
       end
     end
@@ -1033,10 +1034,8 @@ class Vss2xxx
 
     if !@update
       # current folder must be empty
-      n = Dir.entries(".").size
-      if n > 3 || (n == 3 && !File.exist?(".gitkeep"))
-        ppe_exit "ERROR: Current folder must be empty."
-      end
+      ppe_exit "ERROR: Git repository exists." if File.exists?(".git")
+      ppe_exit "ERROR: Current folder must be empty." if Dir.glob("*").size > 0
     else
       repodir =
       case @vcs
@@ -1356,13 +1355,14 @@ class Vss2xxx
     pps "  Vss root project  ".ljust(24) + "= #{@project}"
     pps "  Migrate to        ".ljust(24) + "= #{@vcs}"
     pps "  E-mail domain     ".ljust(24) + "= #{@emaildomain}"
+    pps "  User list file    ".ljust(24) + "= #{@userlistfile}"
     pps "  Branching model   ".ljust(24) + "= #{@branch}"
     pps "  Verbose mode      ".ljust(24) + "= #{@verbose}"
+    pps "  Update mode       ".ljust(24) + "= #{@update}"
     pps "  Time shift value  ".ljust(24) + "= #{@timeshift}"
     pps "  Working directory ".ljust(24) + "= #{@workingdir}"
   end
   private :pps_title
-
 end
 
 #------------------------------------------------------------------------------
@@ -1400,41 +1400,47 @@ class App
 
   def usage
   <<-USAGE
-Usage: #{File.basename $PROGRAM_NAME} -s <vssdir> -u <user> [-p <password>]
-       -c <vcs> [-e <email domain>] [-l <user list file>] [-b <branch>] [-r]
-       [-e <verbose>] [-w <workingdir>] VSS_PROJECT_PATH
+Usage: #{File.basename $PROGRAM_NAME} -s <vssdir> -u <user> [-p <password>] -c <vcs>
+                    [-d <email domain>] [-l <user list>]
+                    [-b <branch>] [-e <verbose>] [-t <time>]
+                    [-w <workingdir>] [-r] VSS_PROJECT
 
-  -s|--vssdir       Absolute path to VSS database
-  -u|--user         VSS user name
-  -p|--password     VSS password
-  -c|--vcs          Target VCS ("bzr" or "git" or "hg")
-  -d|--emaildomain  E-mail domain name
-  -l|--userlist     User list file (JSON format)
-                      Ex.
-                      {
-                        "user1 name in VSS":
-                          ["user1 name in GIT", "user1 e-mail address"],
-                        "user2 name in VSS":
-                          ["user2 name in GIT", "user2 e-mail address"]
-                      }
-  -b|--branch       A successful Git branching model (0, 1, 2)
-                      0: No branching model
-                      1: Branching model 1
-                         master:  Production branch
-                         develop: Development branch
-                      2: Branching model 2
-                         master:  Development branch
-                         product: Production branch
-  -e|--verbose      Verbose mode (0, 1, 2, 3)
-                      0: No output to STDERR
-                      1: Output processing status to STDERR
-                      2: Output author list to STDOUT
-                      3: Output contents of internal object to STDOUT
-  -r|--update       Update repository
-  -t|--timeshift    Time shift (-12 .. 12)
-  -w|--workingdir   Relative path to working tree
-  -v|--version      Print version
-  -h|--help         Print help
+    -s|--vssdir       Absolute path to VSS repository
+    -u|--user         VSS user name
+    -p|--password     VSS password
+    -c|--vcs          Target version control system
+                      "git", "hg" or "bzr"
+    -d|--emaildomain  e-mail domain
+    -l|--userlist     User list file (JSON format)
+                        Ex.
+                        {
+                          "user name on VSS":
+                           ["user name on VCS", "e-mail address"],
+                          "user name on VSS":
+                           ["user name on VCS", "e-mail address"],
+                          ...
+                        }
+    -b|--branch       A successful Git branching model (0, 1, 2) (default:0)
+                        0: No branching model
+                        1: Branching model type 1
+                           master:  Production branch
+                           develop: Development branch
+                        2: Branching model type 2
+                           master:  Development branch
+                           product: Production branch
+    -e|--verbose      Verbose mode (0, 1, 2, 3) (default:1)
+                        STDOUT
+                          0-1: Output migration log
+                          2:   + author list
+                          3:   + dump of internal objest (for debug)
+                        STDERR
+                          0:   No output
+                          1-3: Processing status
+    -t|--timeshift    Time to shift (-12 .. 12)
+    -w|--workingdir   Path to the root of working folder
+    -r|--update       Update mode
+    -v|--version      Print version
+    -h|--help         Print help
      USAGE
   end
 
