@@ -7,6 +7,10 @@ vss2git.rb is a tool to migrate from Microsoft Visual Source Safe to Git, Mercur
 
 vss2git.rb は、Microsoft Visual Source Safe から Git, Vercurial もしくは Bazaar に移行するためのツールです。
 
+Licence
+-------
+This software is released under the MIT License, see LICENSE.txt.
+
 Reauirement
 -----------
 * Microsoft Windows operating system

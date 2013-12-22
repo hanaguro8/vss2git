@@ -1,7 +1,7 @@
 # = Migration tool for VSS->Git, VSS->Hg or VSS->Bzr
 #
 # Author::  Hanaguro
-# License:: Open source
+# License:: MIT License
 # Version:: 1.01
 #
 # Copyright (c) <2012-2013>, <Satoshi Hasegawa>
