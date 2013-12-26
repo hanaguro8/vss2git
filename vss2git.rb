@@ -2,7 +2,7 @@
 #
 # Author::  Hanaguro
 # License:: MIT License
-# Version:: 1.01
+# Version:: 1.02
 #
 # Copyright (c) <2012-2013>, <Satoshi Hasegawa>
 # All rights reserved.
@@ -32,8 +32,8 @@ require 'time'
 require 'json'
 require 'pp'
 
-VERSION       = "1.01"
-REVISION_DATE = "2013/12/20"
+VERSION       = "1.02"
+REVISION_DATE = "2013/12/26"
 AUTHOR        = "Hanaguro"
 
 #------------------------------------------------------------------------------
@@ -167,7 +167,7 @@ module Vcs
       ex("git init -q")
 
       # create .gitignore file
-      ex("echo *.scc>.gitignore")
+      ex("echo *.scc>>.gitignore")
       ex("echo #{MESSAGE_FILE}>>.gitignore")
 
       # initial commit
@@ -311,7 +311,7 @@ module Vcs
       ex("hg branch master")
 
       # create .hgignore file
-      ex("echo syntax: glob>.hgignore")
+      ex("echo syntax: glob>>.hgignore")
       ex("echo *.scc>>.hgignore")
       ex("echo #{MESSAGE_FILE}>>.hgignore")
 
