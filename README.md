@@ -11,7 +11,7 @@ Licence
 -------
 This software is released under the MIT License, see LICENSE.txt.
 
-Reauirement
+Requirement
 -----------
 * Microsoft Windows operating system
   * Windows 7
