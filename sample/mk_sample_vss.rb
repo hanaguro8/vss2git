@@ -100,7 +100,6 @@ module Utility
   end
 end
 
-
 #------------------------------------------------------------------------------
 # CLASS: Vss
 #
@@ -117,40 +116,30 @@ class Vss
   module VssConstant
   end
 
-  #-- definition of VCS oparations
-  ACTION_ADD    = "ADD"
-  ACTION_BRANCH = "BRANCH"
-  ACTION_COMMIT = "COMMIT"
-  ACTION_INIT   = "INIT"
-  ACTION_MERGE  = "MERGE"
-  ACTION_MOVE   = "MOVE"
-  ACTION_REMOVE = "REMOVE"
-  ACTION_TAG    = "TAG"
-
   # VSS actions
   VSS_ACTION = [
-    { VssAction: /added/,                Sym: :Added,              Action: nil        },
-    { VssAction: /archived versions of/, Sym: :ArchivedVersionsOf, Action: ACTION_ADD },
-    { VssAction: /archived/,             Sym: :Archived,           Action: nil        },
-    { VssAction: /branched at version/,  Sym: :BranchedAtVersion,  Action: nil        },
-    { VssAction: /checked in/,           Sym: :CheckedIn,          Action: ACTION_ADD },
-    { VssAction: /created/,              Sym: :Created,            Action: ACTION_ADD },
-    { VssAction: /deleted/,              Sym: :Deleted,            Action: nil        },
-    { VssAction: /destroyed/,            Sym: :Destroyed,          Action: nil        },
-    { VssAction: /labeled/,              Sym: :Labeled,            Action: ACTION_TAG },
-    { VssAction: /moved from/,           Sym: :MovedFrom,          Action: nil        },
-    { VssAction: /moved to/,             Sym: :MovedTo,            Action: nil        },
-    { VssAction: /pinned to version/,    Sym: :PinnedToVersion,    Action: nil        },
-    { VssAction: /purged/,               Sym: :Purged,             Action: nil        },
-    { VssAction: /recovered/,            Sym: :Recovered,          Action: nil        },
-    { VssAction: /renamed to/,           Sym: :RenamedTo,          Action: nil        },
-    { VssAction: /restored/,             Sym: :Restored,           Action: nil        },
-    { VssAction: /rollback to version/,  Sym: :RollbackToVersion,  Action: nil        },
-    { VssAction: /shared/,               Sym: :Shared,             Action: nil        },
-    { VssAction: /unpinned/,             Sym: :Unpinned,           Action: nil        },
-    { VssAction: /.*/,                   Sym: :Other,              Action: "OTHER"    }]
+    { String: /added/,                Action: :Added              },
+    { String: /archived versions of/, Action: :ArchivedVersionsOf },
+    { String: /archived/,             Action: :Archived           },
+    { String: /branched at version/,  Action: :BranchedAtVersion  },
+    { String: /checked in/,           Action: :CheckedIn          },
+    { String: /created/,              Action: :Created            },
+    { String: /deleted/,              Action: :Deleted            },
+    { String: /destroyed/,            Action: :Destroyed          },
+    { String: /labeled/,              Action: :Labeled            },
+    { String: /moved from/,           Action: :MovedFrom          },
+    { String: /moved to/,             Action: :MovedTo            },
+    { String: /pinned to version/,    Action: :PinnedToVersion    },
+    { String: /purged/,               Action: :Purged             },
+    { String: /recovered/,            Action: :Recovered          },
+    { String: /renamed to/,           Action: :RenamedTo          },
+    { String: /restored/,             Action: :Restored           },
+    { String: /rollback to version/,  Action: :RollbackToVersion  },
+    { String: /shared/,               Action: :Shared             },
+    { String: /unpinned/,             Action: :Unpinned           },
+    { String: /.*/,                   Action: :Other              }]
 
-  # Initialize instance
+  # Initialize Vss instance
   #
   # vssdir::   VSS database directory
   # user::     VSS user name
@@ -164,6 +153,8 @@ class Vss
     @project    = project
     @workingdir = workingdir
     @verbose    = verbose
+    
+    @history    = []
 
     # open VSS db
     begin
@@ -185,7 +176,7 @@ class Vss
       @vssdb.Open(file, user, password)
     rescue
       raise VssError,
-        %(\nERROR: Invalid user name: #{user})
+        %(\nERROR: Invalid user name or password)
     end
 
     if @vssdb.GetSetting("Force_Dir") == "Yes"
@@ -203,15 +194,12 @@ class Vss
     end
   end
 
-  # Get history
+  # Analyze
+  #
+  # Analyze VSS and get history
   #----------------------------------------------------------------------------
-  def get_history
-    history  = []
+  def analyze
     @counter = { File: 0 }
-    @vssinfo = {}
-    VSS_ACTION.each do |act|
-      @vssinfo[act[:Sym]] = 0
-    end
 
     files = get_filelist(@project)
 
@@ -219,33 +207,67 @@ class Vss
       item = get_item(file)
       next unless item
 
-      history += get_history_of_the_file(file, item)
+      @history += get_history_of_the_file(file, item)
       ppe_status(
         @verbose,
-        "Get history...",
+        "Get history ...",
         "#{i + 1} / #{files.size} files")
     end
 
     ppe_status(@verbose, "\n")
-    pps_object("history generated by get_history", history) if @verbose >= 3
+    pps_object("history generated by get_history", @history) if @verbose >= 2
+  end
 
-    [history, @vssinfo]
+  # Get history
+  #----------------------------------------------------------------------------
+  def get_history
+    @history
+  end
+
+  # Get VSS information
+  #
+  # history:: History of VSS
+  #----------------------------------------------------------------------------
+  def get_vssinfo(history)
+    vssinfo = {}
+
+    VSS_ACTION.each do |act|
+      vssinfo[act[:Action]] = 0
+    end
+
+    history.each do |h|
+      vssinfo[h[:Action]] += 1
+    end
+    vssinfo
+  end
+
+  # Get users
+  #
+  # history:: History of VSS
+  #----------------------------------------------------------------------------
+  def get_users(history)
+    users = []
+
+    history.each do |h|
+      users << h[:Author] unless users.include?(h[:Author])
+    end
+    users
   end
 
   # Get file list
   #
-  # project:: project folder name (Ex. $/, $/project etc.)
+  # project:: Project folder name (Ex. $/, $/project etc.)
   #----------------------------------------------------------------------------
   def get_filelist(project)
     files = walk_tree(project).uniq.sort
-    ppe_status(@verbose, "Make file list...", "#{files.size} files\n")
+    ppe_status(@verbose, "Make file list ...", "#{files.size} files\n")
     files
   end
   private :get_filelist
 
   # Walk VSS project tree to get file list
   #
-  # project:: project folder name (Ex. $/, $/project etc.)
+  # project:: Project folder name (Ex. $/, $/project etc.)
   #----------------------------------------------------------------------------
   def walk_tree(project)
     files = []
@@ -262,7 +284,7 @@ class Vss
         subproject = item.Name
         files += walk_tree("#{project}#{subproject}/")
         ppe_status(
-          @verbose, "Meke file list...", "#{@counter[:File]} files")
+          @verbose, "Meke file list ...", "#{@counter[:File]} files")
       else
         @counter[:File] += 1
         files << item.Spec
@@ -275,7 +297,7 @@ class Vss
 
   # Get IVSSItem object
   #
-  # file:: file name or project folder name
+  # file:: File name or project folder name
   #----------------------------------------------------------------------------
   def get_item(file)
     begin
@@ -291,7 +313,7 @@ class Vss
 
   # Get history of the file
   #
-  # file:: file name
+  # file:: File name
   # item:: VSSItem object
   #----------------------------------------------------------------------------
   def get_history_of_the_file(file, item)
@@ -311,24 +333,12 @@ class Vss
       hs[:Tag]           = ver.Label.chomp
       hs[:LatestVersion] = (item.VersionNumber == hs[:Version])
 
-      pps ver.Action if @verbose >= 3
+      pps ver.Action if @verbose >= 2
 
       action = VSS_ACTION.find do |act|
-        ver.Action.downcase =~ act[:VssAction]
+        ver.Action.downcase =~ act[:String]
       end
-
-      @vssinfo[action[:Sym]] += 1
-
-      case action[:Action]
-      when "OTHER"
-        raise VssError,
-          %(\nERROR: Unexpected operation: #{ver.Action.downcase})
-      when nil
-        next
-      else
-        hs[:Action] = action[:Action]
-      end
-
+      hs[:Action] = action[:Action]
       history << hs
     end
     history
@@ -383,7 +393,7 @@ class Vss
   # item:: IVSSItem object
   #----------------------------------------------------------------------------
   def pps_item(item)
-    return unless @verbose >= 3
+    return unless @verbose >= 2
 
     pps_header("item")
     puts "item.Spec: #{item.Spec}"
@@ -401,7 +411,7 @@ class Vss
   # ver::  IVSSVersion object
   #----------------------------------------------------------------------------
   def pps_version(file, ver)
-    return unless @verbose >= 3
+    return unless @verbose >= 2
 
     pps_header("version")
     puts "file: #{file}"
@@ -498,9 +508,8 @@ class Vss
   end
 end # Class Vss
 
-
-
-
+# App
+#------------------------------------------------------------------------------
 #j enter VSS command directory
 print "Enter VSS command directory: "
 vsspath = ARGF.gets.chop

@@ -5,13 +5,9 @@ Outline
 -------
 vss2git.rb is a tool to migrate from Microsoft Visual Source Safe to Git, Mercurial or Bazaar.
 
-vss2git.rb は、Microsoft Visual Source Safe から Git, Vercurial もしくは Bazaar に移行するためのツールです。
+vss2git.rb �́AMicrosoft Visual Source Safe ���� Git, Vercurial �������� Bazaar �Ɉڍs���邽�߂̃c�[���ł��B
 
-Licence
--------
-This software is released under the MIT License, see LICENSE.txt.
-
-Requirement
+Reauirement
 -----------
 * Microsoft Windows operating system
   * Windows 7
@@ -33,11 +29,15 @@ Command path should be added to the execution PATH.
 Usage
 -----
 
-    ruby vss2git.rb -s <vssdir> -u <user> [-p <password>] -c <vcs>
-                    [-d <email domain>] [-l <user list>]
-                    [-b <branch>] [-e <verbose>] [-t <time>]
-                    [-w <workingdir>] [-r] VSS_PROJECT
+    ruby vss2git.rb -r <runmode> -s <vssdir> -u <user> [-p <password>]
+                    [-c <vcs>] [-d <email domain>] [-l <user list>]
+                    [-b <branch>] [-e a<verbose>] [-t <time>]
+                    [-w <workingdir>] VSS_PROJECT
 
+    -r|--runmode      Run mode (0, 1, 2) (defualt:1)
+                        0: Analyze
+                        1: Full migration
+                        2: Continuous migration
     -s|--vssdir       Absolute path to VSS repository
     -u|--user         VSS user name
     -p|--password     VSS password
@@ -64,14 +64,12 @@ Usage
     -e|--verbose      Verbose mode (0, 1, 2, 3) (default:1)
                         STDOUT
                           0-1: Output migration log
-                          2:   + author list
-                          3:   + dump of internal objest (for debug)
+                          2:   + dump of internal objest (for debug)
                         STDERR
                           0:   No output
-                          1-3: Processing status
+                          1-2: Processing status
     -t|--timeshift    Time to shift (-12 .. 12)
     -w|--workingdir   Path to the root of working folder
-    -r|--update       Update mode
     -v|--version      Print version
     -h|--help         Print help
     
@@ -87,7 +85,7 @@ Example
 
 Command:
     
-    > ruby vss2git.rb -s C:\vssrepo\library -u hanaguro -c git $/ >mig.log
+    > ruby vss2git.rb -r1 -s C:\vssrepo\library -u hanaguro -c git $/ >mig.log
 
 **Case 2**
 
@@ -103,7 +101,7 @@ Command:
 
 Command:
 
-    > ruby vss2git.rb -s \\\vssrepo\library -u hanaguro -p abc123
+    > ruby vss2git.rb -r1 -s \\\vssrepo\library -u hanaguro -p abc123
       -c git -d mail.abcdefg.co.jp -l c:\doc\user.json -b2 
       -w PRODUCT-1 $/PRODUCT-1 >mig.log
 
@@ -136,3 +134,9 @@ The "migrate.bat" do following.
 Command:
 
     sample\> migrate
+
+Change log
+----------
+### Ver 1.10
+- Change the specification of command line option "-r".  
+When you specify "-r0", you can analyze VSS to get VSS information and user list without migration.

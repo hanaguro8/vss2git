@@ -2,9 +2,9 @@
 #
 # Author::  Hanaguro
 # License:: MIT License
-# Version:: 1.02
+# Version:: 1.10
 #
-# Copyright (c) <2012-2013>, <Satoshi Hasegawa>
+# Copyright (c) <2012-2014>, <Satoshi Hasegawa>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,8 +32,8 @@ require 'time'
 require 'json'
 require 'pp'
 
-VERSION       = "1.02"
-REVISION_DATE = "2013/12/26"
+VERSION       = "1.10"
+REVISION_DATE = "2014/2/17"
 AUTHOR        = "Hanaguro"
 
 #------------------------------------------------------------------------------
@@ -256,7 +256,7 @@ module Vcs
 
     # Assign tag
     #
-    # tag:: Tag name
+    # tag::    Tag name
     # author:: Author
     # date::   Date
     #--------------------------------------------------------------------------
@@ -604,40 +604,30 @@ class Vss
   module VssConstant
   end
 
-  #-- definition of VCS oparations
-  ACTION_ADD    = "ADD"
-  ACTION_BRANCH = "BRANCH"
-  ACTION_COMMIT = "COMMIT"
-  ACTION_INIT   = "INIT"
-  ACTION_MERGE  = "MERGE"
-  ACTION_MOVE   = "MOVE"
-  ACTION_REMOVE = "REMOVE"
-  ACTION_TAG    = "TAG"
-
   # VSS actions
   VSS_ACTION = [
-    { VssAction: /added/,                Sym: :Added,              Action: nil        },
-    { VssAction: /archived versions of/, Sym: :ArchivedVersionsOf, Action: ACTION_ADD },
-    { VssAction: /archived/,             Sym: :Archived,           Action: nil        },
-    { VssAction: /branched at version/,  Sym: :BranchedAtVersion,  Action: nil        },
-    { VssAction: /checked in/,           Sym: :CheckedIn,          Action: ACTION_ADD },
-    { VssAction: /created/,              Sym: :Created,            Action: ACTION_ADD },
-    { VssAction: /deleted/,              Sym: :Deleted,            Action: nil        },
-    { VssAction: /destroyed/,            Sym: :Destroyed,          Action: nil        },
-    { VssAction: /labeled/,              Sym: :Labeled,            Action: ACTION_TAG },
-    { VssAction: /moved from/,           Sym: :MovedFrom,          Action: nil        },
-    { VssAction: /moved to/,             Sym: :MovedTo,            Action: nil        },
-    { VssAction: /pinned to version/,    Sym: :PinnedToVersion,    Action: nil        },
-    { VssAction: /purged/,               Sym: :Purged,             Action: nil        },
-    { VssAction: /recovered/,            Sym: :Recovered,          Action: nil        },
-    { VssAction: /renamed to/,           Sym: :RenamedTo,          Action: nil        },
-    { VssAction: /restored/,             Sym: :Restored,           Action: nil        },
-    { VssAction: /rollback to version/,  Sym: :RollbackToVersion,  Action: nil        },
-    { VssAction: /shared/,               Sym: :Shared,             Action: nil        },
-    { VssAction: /unpinned/,             Sym: :Unpinned,           Action: nil        },
-    { VssAction: /.*/,                   Sym: :Other,              Action: "OTHER"    }]
+    { String: /added/,                Action: :Added              },
+    { String: /archived versions of/, Action: :ArchivedVersionsOf },
+    { String: /archived/,             Action: :Archived           },
+    { String: /branched at version/,  Action: :BranchedAtVersion  },
+    { String: /checked in/,           Action: :CheckedIn          },
+    { String: /created/,              Action: :Created            },
+    { String: /deleted/,              Action: :Deleted            },
+    { String: /destroyed/,            Action: :Destroyed          },
+    { String: /labeled/,              Action: :Labeled            },
+    { String: /moved from/,           Action: :MovedFrom          },
+    { String: /moved to/,             Action: :MovedTo            },
+    { String: /pinned to version/,    Action: :PinnedToVersion    },
+    { String: /purged/,               Action: :Purged             },
+    { String: /recovered/,            Action: :Recovered          },
+    { String: /renamed to/,           Action: :RenamedTo          },
+    { String: /restored/,             Action: :Restored           },
+    { String: /rollback to version/,  Action: :RollbackToVersion  },
+    { String: /shared/,               Action: :Shared             },
+    { String: /unpinned/,             Action: :Unpinned           },
+    { String: /.*/,                   Action: :Other              }]
 
-  # Initialize instance
+  # Initialize Vss instance
   #
   # vssdir::   VSS database directory
   # user::     VSS user name
@@ -650,6 +640,8 @@ class Vss
     @project    = project
     @workingdir = workingdir
     @verbose    = verbose
+    
+    @history    = []
 
     # open VSS db
     begin
@@ -689,15 +681,12 @@ class Vss
     end
   end
 
-  # Get history
+  # Analyze
+  #
+  # Analyze VSS and get history
   #----------------------------------------------------------------------------
-  def get_history
-    history  = []
+  def analyze
     @counter = { File: 0 }
-    @vssinfo = {}
-    VSS_ACTION.each do |act|
-      @vssinfo[act[:Sym]] = 0
-    end
 
     files = get_filelist(@project)
 
@@ -705,7 +694,7 @@ class Vss
       item = get_item(file)
       next unless item
 
-      history += get_history_of_the_file(file, item)
+      @history += get_history_of_the_file(file, item)
       ppe_status(
         @verbose,
         "Get history ...",
@@ -713,14 +702,48 @@ class Vss
     end
 
     ppe_status(@verbose, "\n")
-    pps_object("history generated by get_history", history) if @verbose >= 3
+    pps_object("history generated by get_history", @history) if @verbose >= 2
+  end
 
-    [history, @vssinfo]
+  # Get history
+  #----------------------------------------------------------------------------
+  def get_history
+    @history
+  end
+
+  # Get VSS information
+  #
+  # history:: History of VSS
+  #----------------------------------------------------------------------------
+  def get_vssinfo(history)
+    vssinfo = {}
+
+    VSS_ACTION.each do |act|
+      vssinfo[act[:Action]] = 0
+    end
+
+    history.each do |h|
+      vssinfo[h[:Action]] += 1
+    end
+    vssinfo
+  end
+
+  # Get users
+  #
+  # history:: History of VSS
+  #----------------------------------------------------------------------------
+  def get_users(history)
+    users = []
+
+    history.each do |h|
+      users << h[:Author] unless users.include?(h[:Author])
+    end
+    users
   end
 
   # Get file list
   #
-  # project:: project folder name (Ex. $/, $/project etc.)
+  # project:: Project folder name (Ex. $/, $/project etc.)
   #----------------------------------------------------------------------------
   def get_filelist(project)
     files = walk_tree(project).uniq.sort
@@ -731,7 +754,7 @@ class Vss
 
   # Walk VSS project tree to get file list
   #
-  # project:: project folder name (Ex. $/, $/project etc.)
+  # project:: Project folder name (Ex. $/, $/project etc.)
   #----------------------------------------------------------------------------
   def walk_tree(project)
     files = []
@@ -761,7 +784,7 @@ class Vss
 
   # Get IVSSItem object
   #
-  # file:: file name or project folder name
+  # file:: File name or project folder name
   #----------------------------------------------------------------------------
   def get_item(file)
     begin
@@ -777,7 +800,7 @@ class Vss
 
   # Get history of the file
   #
-  # file:: file name
+  # file:: File name
   # item:: VSSItem object
   #----------------------------------------------------------------------------
   def get_history_of_the_file(file, item)
@@ -797,24 +820,12 @@ class Vss
       hs[:Tag]           = ver.Label.chomp
       hs[:LatestVersion] = (item.VersionNumber == hs[:Version])
 
-      pps ver.Action if @verbose >= 3
+      pps ver.Action if @verbose >= 2
 
       action = VSS_ACTION.find do |act|
-        ver.Action.downcase =~ act[:VssAction]
+        ver.Action.downcase =~ act[:String]
       end
-
-      @vssinfo[action[:Sym]] += 1
-
-      case action[:Action]
-      when "OTHER"
-        raise VssError,
-          %(\nERROR: Unexpected operation: #{ver.Action.downcase})
-      when nil
-        next
-      else
-        hs[:Action] = action[:Action]
-      end
-
+      hs[:Action] = action[:Action]
       history << hs
     end
     history
@@ -869,7 +880,7 @@ class Vss
   # item:: IVSSItem object
   #----------------------------------------------------------------------------
   def pps_item(item)
-    return unless @verbose >= 3
+    return unless @verbose >= 2
 
     pps_header("item")
     puts "item.Spec: #{item.Spec}"
@@ -887,7 +898,7 @@ class Vss
   # ver::  IVSSVersion object
   #----------------------------------------------------------------------------
   def pps_version(file, ver)
-    return unless @verbose >= 3
+    return unless @verbose >= 2
 
     pps_header("version")
     puts "file: #{file}"
@@ -910,42 +921,82 @@ class Vss2xxx
   include Vcs
   include Utility
 
-  MASTER_BRANCH  = "master"
-  PRODUCT_BRANCH = "product"
-  DEVELOP_BRANCH = "develop"
-
   #-- Each commit in the following time range are assumed to a same changeset.
   VSS_CHANGESET_RANGE_1 = 600 # sec # When same author & same message
   VSS_CHANGESET_RANGE_2 = 120 # sec # When same author & no message
 
+  #-- definition of VCS oparations
+  ACTION_ADD    = "ADD"
+  ACTION_BRANCH = "BRANCH"
+  ACTION_COMMIT = "COMMIT"
+  ACTION_INIT   = "INIT"
+  ACTION_MERGE  = "MERGE"
+  ACTION_MOVE   = "MOVE"
+  ACTION_REMOVE = "REMOVE"
+  ACTION_TAG    = "TAG"
+
+  #-- definition of branch name
+  MASTER_BRANCH  = "master"
+  PRODUCT_BRANCH = "product"
+  DEVELOP_BRANCH = "develop"
+
+  #-- VCS actions
+  ACTION = [
+    { Vss: :Added,              Vcs: nil        },
+    { Vss: :ArchivedVersionsOf, Vcs: ACTION_ADD },
+    { Vss: :Archived,           Vcs: nil        },
+    { Vss: :BranchedAtVersion,  Vcs: nil        },
+    { Vss: :CheckedIn,          Vcs: ACTION_ADD },
+    { Vss: :Created,            Vcs: ACTION_ADD },
+    { Vss: :Deleted,            Vcs: nil        },
+    { Vss: :Destroyed,          Vcs: nil        },
+    { Vss: :Labeled,            Vcs: ACTION_TAG },
+    { Vss: :MovedFrom,          Vcs: nil        },
+    { Vss: :MovedTo,            Vcs: nil        },
+    { Vss: :PinnedToVersion,    Vcs: nil        },
+    { Vss: :Purged,             Vcs: nil        },
+    { Vss: :Recovered,          Vcs: nil        },
+    { Vss: :RenamedTo,          Vcs: nil        },
+    { Vss: :Restored,           Vcs: nil        },
+    { Vss: :RollbackToVersion,  Vcs: nil        },
+    { Vss: :Shared,             Vcs: nil        },
+    { Vss: :Unpinned,           Vcs: nil        },
+    { Vss: :Other,              Vcs: "OTHER"    }]
+
+  #-- Run mode
+  RUNMODE_ANALYZE              = 0
+  RUNMODE_FULL_MIGRATION       = 1
+  RUNMODE_CONTINUOUS_MIGRATION = 2
+
   # Initialize instance
   #
   # opt:: command line option
-  # [:Vssdir] VSS repository folder
-  # [:User] VSS user account
-  # [:Password] VSS password
-  # [:Project] VSS project foler
-  # [:Vcs] Target VCS ("git", "hg" or "bzr")
+  # [:Runmode]     Run mode
+  # [:Vssdir]      VSS repository folder
+  # [:User]        VSS user account
+  # [:Password]    VSS password
+  # [:Project]     VSS project foler
+  # [:Vcs]         Target VCS ("git", "hg" or "bzr")
   # [:Emaildomain] E-mail domain address.
-  # [:Branch] Branching model
-  # [:Verbose] Debug mode
-  # [:Update] Update mode
-  # [:Timeshift] Time shift value when migrating
-  # [:Workingdir] Working folder
-  # [:Version] Version number of this script
+  # [:Userlist]    User list to convert user name from VSS to VCS
+  # [:Branch]      Branching model
+  # [:Verbose]     Verbose mode
+  # [:Timeshift]   Time shift value when migrating
+  # [:Workingdir]  Working folder
+  # [:Version]     Version number of this script
   #----------------------------------------------------------------------------
   def initialize(opt)
+    @runmode      = opt[:Runmode]
     @vssdir       = opt[:Vssdir]
     @user         = opt[:User]
     @password     = opt[:Password]
     @project      = opt[:Project]
     @vcs          = opt[:Vcs]
     @emaildomain  = opt[:Emaildomain]
-    @userlistfile = opt[:Userlist]
-    @userlist     = nil
+    @userlist     = opt[:Userlist]
+    @users        = {}
     @branch       = opt[:Branch]
     @verbose      = opt[:Verbose]
-    @update       = opt[:Update]
     @timeshift    = opt[:Timeshift]
     @workingdir   = opt[:Workingdir]
     @version      = opt[:Version]
@@ -953,7 +1004,15 @@ class Vss2xxx
     # check mandatory options
     ppe_exit "ERROR: No option: -s, --vssdir" unless @vssdir
     ppe_exit "ERROR: No option: -u, --user"   unless @user
-    ppe_exit "ERROR: No option: -c, --vcs"    unless @vcs
+
+    unless @runmode == RUNMODE_ANALYZE
+      ppe_exit "ERROR: No option: -c, --vcs"    unless @vcs
+
+      # check @vcs
+      unless @vcs == "git" || @vcs == "bzr" || @vcs == "hg"
+        ppe_exit "ERROR: Invalid option: --vcs #{@vcs}"
+      end
+    end
 
     # check @vssdir
     @vssdir += "\\" unless @vssdir[-1] == "\\"
@@ -976,21 +1035,13 @@ class Vss2xxx
       @workingdir += "\\"
     end
 
-    # check @vcs
-    unless @vcs == "git" || @vcs == "bzr" || @vcs == "hg"
-      ppe_exit "ERROR: Invalid option: --vcs #{@vcs}"
-    end
-
-    # @emaildomain
-    @emaildomain ||= "localhost"
-
-    # @userlist
-    if @userlistfile
-      unless File.exist?(@userlistfile)
-        ppe_exit "ERROR: File does not exist: (#{@userlistfile})"
+    # @users
+    if @userlist
+      unless File.exist?(@userlist)
+        ppe_exit "ERROR: File does not exist: (#{@userlist})"
       end
-      File.open(@userlistfile, "r") do |file|
-        @userlist = JSON.load(file)
+      File.open(@userlist, "r") do |file|
+        @users = JSON.load(file)
       end
     end
 
@@ -1000,7 +1051,7 @@ class Vss2xxx
     end
 
     # check @verbose
-    unless 0 <= @verbose && @verbose <= 3
+    unless 0 <= @verbose && @verbose <= 2
       ppe_exit "ERROR: Invalid option: --verbose #{@verbose}"
     end
 
@@ -1032,70 +1083,99 @@ class Vss2xxx
   #----------------------------------------------------------------------------
   def run
 
-    if !@update
+    case @runmode
+    when RUNMODE_FULL_MIGRATION
       # current folder must be empty
       ppe_exit "ERROR: Git repository exists." if File.exists?(".git")
       ppe_exit "ERROR: Current folder must be empty." if Dir.glob("*").size > 0
-    else
-      repodir =
-      case @vcs
-      when 'git'
-        ".git"
-      when 'hg'
-        ".hg"
-      when 'bzr'
-        ".bzr"
-      end
+
+    when RUNMODE_CONTINUOUS_MIGRATION
+      repodir = { "git" => ".git",
+                  "hg"  => ".ht",
+                  "bzr" => ".bzr"}[@vcs]
 
       unless File.exist?(repodir)
         ppe_exit "ERROR: no local repository #{repodir}"
       end
     end
 
-    # get history from VSS
-    history, vssinfo = @vss.get_history
-    history          = modify_author(history)
-    history          = modify_time(history, @timeshift)
-    changesets       = make_changeset(history)
+    # Analyze VSS
+    @vss.analyze
+    history   = @vss.get_history
+    vssinfo   = @vss.get_vssinfo(history)
+    vss_users = @vss.get_users(history)
+
+    @users = update_users(@users, vss_users, @emaildomain)
 
     # print log
     pps_title
     pps_hash("VSS information", vssinfo)
+    pps_users
 
-    migrate(changesets)
+    unless @runmode == RUNMODE_ANALYZE
+      history    = modify_action(history)
+      history    = modify_author(history, @users)
+      history    = modify_time(history, @timeshift)
+      changesets = make_changeset(history)
+
+      migrate(changesets)
+    end
   end
+
+  # Update user list
+  #
+  # users::       Users obtained by -l option
+  # vss_users::   Users on VSS
+  # emaildomain:: Default email domain obtained by -d option
+  #----------------------------------------------------------------------------
+  def update_users(users, vss_users, emaildomain)
+    vss_users.each do |name|
+      unless users.include?(name)
+        if emaildomain
+          users[name] = [name, "#{name}@#{emaildomain}"]
+        else
+          users[name] = [name, ""]
+        end
+      end
+    end
+    users
+  end
+  private :update_users
+
+  # Modify action in the history
+  #
+  # history:: History of VSS
+  def modify_action(history)
+    out = history.map do |hs|
+      action = ACTION.find do |act|
+        act[:Vss] == hs[:Action]
+      end
+      hs[:Action] = action[:Vcs]
+      hs
+    end
+    out
+  end
+  private :modify_action
 
   # Modify author in the history
   #
-  # history:: All history getting from VSS
+  # history:: History of VSS
+  # users::   Users
   #----------------------------------------------------------------------------
-  def modify_author(history)
-    userlist = @userlist || {}
-
+  def modify_author(history, users)
     # Modify Author ("aaaaa" => "bbbbb <ccccc@ddd.eee>" )
     out = history.map do |hs|
-
-      author = hs[:Author]
-
-      if userlist[author]
-        name, email      = userlist[author]
-      else
-        name             = author
-        email            = "#{author}@#{@emaildomain}"
-        userlist[author] = [name, email]
-      end
-
+      name, email = users[hs[:Author]]
       hs[:Author] = "#{name} <#{email}>"
       hs
     end
-
-    puts JSON.pretty_generate(userlist) if @verbose >= 2
     out
   end
+  private :modify_author
 
   # Modify time in the history
   #
-  # history:: All history getting from VSS
+  # history::   History of VSS
   # timeshift:: Time to shift
   #----------------------------------------------------------------------------
   def modify_time(history, timeshift)
@@ -1105,10 +1185,11 @@ class Vss2xxx
     end
     out
   end
+  private :modify_time
 
   # Make chageset
   #
-  # history:: All history getting from VSS
+  # history:: History of VSS
   #----------------------------------------------------------------------------
   def make_changeset(history)
     changesets = []
@@ -1177,7 +1258,7 @@ class Vss2xxx
     # output last changeset
     changesets << cs
 
-    pps_object("operations by make_changeset", changesets) if @verbose >= 3
+    pps_object("operations by make_changeset", changesets) if @verbose >= 2
 
     changesets
   end
@@ -1188,20 +1269,16 @@ class Vss2xxx
   # changesets:: changesets
   #----------------------------------------------------------------------------
   def migrate(changesets)
-    vcs =
-      case @vcs
-      when "bzr"
-        Bzr.new
-      when "git"
-        Git.new
-      when "hg"
-        Hg.new
-      else
-        nil
-      end
+    full_migration = (@runmode == RUNMODE_FULL_MIGRATION)
+
+    vcs = { "git" => Git.new,
+            "ht"  => Hg.new,
+            "bzr" => Bzr.new }[@vcs]
 
     pps_header("Start migration")
-    unless @update
+    
+    # Init repository
+    if full_migration
       vcs.create_repository("vss2xxx: Version #{VERSION}")
       case @branch
       when 1
@@ -1213,15 +1290,14 @@ class Vss2xxx
 
     vcs.switch_branch(@develop_branch)
 
-    last_date = vcs.latest_commit[:Date] if @update
+    vcs_last_commit = vcs.latest_commit[:Date]
 
     changesets.each do |cs|
-
       # If the VSS is updated within VSS_CHANGESET_RANGE_1, skip update
-      if @update
-        time_last_commit = changesets[-1][-1][:Date]
+      unless full_migration
+        vss_last_commit = changesets[-1][-1][:Date]
 
-        if VSS_CHANGESET_RANGE_1 >= Time.now - time_last_commit
+        if VSS_CHANGESET_RANGE_1 >= Time.now - vss_last_commit
           ppe_status(
             @verbose,
             "Skip update ...",
@@ -1231,7 +1307,7 @@ class Vss2xxx
       end
 
       # get recent update
-      next if @update && cs[0][:Date] <= last_date
+      next if !full_migration && cs[0][:Date] <= vcs_last_commit
 
       @counter[:Changeset] += 1
 
@@ -1248,6 +1324,7 @@ class Vss2xxx
         when Vcs::ACTION_ADD
           # When you like to get latest version of file,
           # you have to specify nil to version for Vss::get_file()
+          # VSS bug?
           version = op[:LatestVersion] ? nil : op[:Version]
 
           counter[:Ok] += 1 if @vss.get_file(op[:File], version)
@@ -1307,7 +1384,7 @@ class Vss2xxx
     ppe_status(@verbose, "\n")
 
     # finalize
-    commit_latest_files(vcs) unless @update
+    commit_latest_files(vcs) if full_migration
 
     # pack repository
     ppe_status(@verbose, "Pack repository ...\n")
@@ -1319,6 +1396,8 @@ class Vss2xxx
   # 1. Clean working directory
   # 2. Get latest files from VSS
   # 3. Commit
+  #
+  # vcs:: Instance of version control system
   #----------------------------------------------------------------------------
   def commit_latest_files(vcs)
     pps_header("Latest files")
@@ -1347,22 +1426,31 @@ class Vss2xxx
   # Print vss2xxx execution information
   #----------------------------------------------------------------------------
   def pps_title
+    width = 24
     pps_header("Command information")
-    pps "  Date              ".ljust(24) + "= #{Time.now}"
-    pps "  vss2xxx Version   ".ljust(24) + "= #{@version}"
-    pps "  Vss folder        ".ljust(24) + "= #{@vssdir}"
-    pps "  Vss user          ".ljust(24) + "= #{@user}"
-    pps "  Vss root project  ".ljust(24) + "= #{@project}"
-    pps "  Migrate to        ".ljust(24) + "= #{@vcs}"
-    pps "  E-mail domain     ".ljust(24) + "= #{@emaildomain}"
-    pps "  User list file    ".ljust(24) + "= #{@userlistfile}"
-    pps "  Branching model   ".ljust(24) + "= #{@branch}"
-    pps "  Verbose mode      ".ljust(24) + "= #{@verbose}"
-    pps "  Update mode       ".ljust(24) + "= #{@update}"
-    pps "  Time shift value  ".ljust(24) + "= #{@timeshift}"
-    pps "  Working directory ".ljust(24) + "= #{@workingdir}"
+    pps "  Date              ".ljust(width) + "= #{Time.now}"
+    pps "  vss2xxx Version   ".ljust(width) + "= #{@version}"
+    pps "  Run mode          ".ljust(width) + "= #{@runmode}"
+    pps "  Vss folder        ".ljust(width) + "= #{@vssdir}"
+    pps "  Vss user          ".ljust(width) + "= #{@user}"
+    pps "  Vss root project  ".ljust(width) + "= #{@project}"
+    pps "  Migrate to        ".ljust(width) + "= #{@vcs}"
+    pps "  E-mail domain     ".ljust(width) + "= #{@emaildomain}"
+    pps "  User list file    ".ljust(width) + "= #{@userlist}"
+    pps "  Branching model   ".ljust(width) + "= #{@branch}"
+    pps "  Verbose mode      ".ljust(width) + "= #{@verbose}"
+    pps "  Time shift value  ".ljust(width) + "= #{@timeshift}"
+    pps "  Working directory ".ljust(width) + "= #{@workingdir}"
   end
   private :pps_title
+
+  # Print users
+  #----------------------------------------------------------------------------
+  def pps_users
+    pps_header("User list (JSON format)")
+    puts JSON.pretty_generate(@users)
+  end
+  private :pps_users
 end
 
 #------------------------------------------------------------------------------
@@ -1371,24 +1459,28 @@ end
 class App
   include Utility
 
+  # Print version
+  #----------------------------------------------------------------------------
   def version
     puts "Version: #{VERSION}"
     puts "Date:    #{REVISION_DATE}"
     puts "Author:  #{AUTHOR}"
   end
 
+  # Initialize
+  #----------------------------------------------------------------------------
   def initialize
     @opt = {}
+    @opt[:Runmode]     = 1
     @opt[:Vssdir]      = nil
     @opt[:User]        = nil
     @opt[:Password]    = nil
     @opt[:Project]     = nil
     @opt[:Vcs]         = nil
     @opt[:Emaildomain] = nil
-    @opt[:Userlist]    = nil
+    @opt[:Users]       = nil
     @opt[:Branch]      = 0
     @opt[:Verbose]     = 1
-    @opt[:Update]      = false
     @opt[:Timeshift]   = 0     # local time = 0
     @opt[:Workingdir]  = ""
     @opt[:Version]     = VERSION
@@ -1398,13 +1490,19 @@ class App
     get_options
   end
 
+  # Usage
+  #----------------------------------------------------------------------------
   def usage
   <<-USAGE
-Usage: #{File.basename $PROGRAM_NAME} -s <vssdir> -u <user> [-p <password>] -c <vcs>
-                    [-d <email domain>] [-l <user list>]
+Usage: #{File.basename $PROGRAM_NAME} -r <runmode> -s <vssdir> -u <user> [-p <password>]
+                    [-c <vcs> ] [-d <email domain>] [-l <user list>]
                     [-b <branch>] [-e <verbose>] [-t <time>]
-                    [-w <workingdir>] [-r] VSS_PROJECT
+                    [-w <workingdir>] VSS_PROJECT
 
+    -r|--runmode      Run mode (0, 1, 2) (default:1)
+                        0: Only analyze VSS without migration
+                        1: Full migration
+                        2: Continuous migration
     -s|--vssdir       Absolute path to VSS repository
     -u|--user         VSS user name
     -p|--password     VSS password
@@ -1438,14 +1536,16 @@ Usage: #{File.basename $PROGRAM_NAME} -s <vssdir> -u <user> [-p <password>] -c <
                           1-3: Processing status
     -t|--timeshift    Time to shift (-12 .. 12)
     -w|--workingdir   Path to the root of working folder
-    -r|--update       Update mode
     -v|--version      Print version
     -h|--help         Print help
      USAGE
   end
 
+  # Get command line options
+  #----------------------------------------------------------------------------
   def get_options
     opts = GetoptLong.new(
+      ["--runmode", "-r", GetoptLong::REQUIRED_ARGUMENT],
       ["--vssdir", "-s", GetoptLong::REQUIRED_ARGUMENT],
       ["--user", "-u", GetoptLong::REQUIRED_ARGUMENT],
       ["--password", "-p", GetoptLong::REQUIRED_ARGUMENT],
@@ -1454,7 +1554,6 @@ Usage: #{File.basename $PROGRAM_NAME} -s <vssdir> -u <user> [-p <password>] -c <
       ["--userlist", "-l", GetoptLong::REQUIRED_ARGUMENT],
       ["--branch", "-b", GetoptLong::REQUIRED_ARGUMENT],
       ["--verbose", "-e", GetoptLong::REQUIRED_ARGUMENT],
-      ["--update", "-r", GetoptLong::NO_ARGUMENT],
       ["--timeshift", "-t", GetoptLong::REQUIRED_ARGUMENT],
       ["--workingdir", "-w", GetoptLong::REQUIRED_ARGUMENT],
       ["--version", "-v", GetoptLong::NO_ARGUMENT],
@@ -1462,6 +1561,8 @@ Usage: #{File.basename $PROGRAM_NAME} -s <vssdir> -u <user> [-p <password>] -c <
     )
     opts.each do |opt, arg|
       case opt
+      when "--runmode"
+        @opt[:Runmode]     = arg.to_i
       when "--vssdir"
         @opt[:Vssdir]      = arg
       when "--user"
@@ -1478,8 +1579,6 @@ Usage: #{File.basename $PROGRAM_NAME} -s <vssdir> -u <user> [-p <password>] -c <
         @opt[:Branch]      = arg.to_i
       when "--verbose"
         @opt[:Verbose]     = arg.to_i
-      when "--update"
-        @opt[:Update]      = true
       when "--timeshift"
         @opt[:Timeshift]   = arg.to_i
       when "--workingdir"
@@ -1502,6 +1601,8 @@ Usage: #{File.basename $PROGRAM_NAME} -s <vssdir> -u <user> [-p <password>] -c <
     @opt[:Project] = ARGV[0]
   end
 
+  # Run app
+  #----------------------------------------------------------------------------
   def run
     vss2xxx = Vss2xxx.new(@opt)
     vss2xxx.run
