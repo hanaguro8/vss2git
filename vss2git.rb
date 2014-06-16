@@ -2,7 +2,7 @@
 #
 # Author::  Hanaguro
 # License:: MIT License
-# Version:: 1.10
+# Version:: 1.11
 #
 # Copyright (c) <2012-2014>, <Satoshi Hasegawa>
 # All rights reserved.
@@ -32,8 +32,8 @@ require 'time'
 require 'json'
 require 'pp'
 
-VERSION       = "1.10"
-REVISION_DATE = "2014/2/17"
+VERSION       = "1.11"
+REVISION_DATE = "2014/6/16"
 AUTHOR        = "Hanaguro"
 
 #------------------------------------------------------------------------------
@@ -666,18 +666,25 @@ class Vss
         %(\nERROR: Invalid user name or password)
     end
 
-    if @vssdb.GetSetting("Force_Dir") == "Yes"
-      raise VssError,
-        %(\nERROR: VSS setting error.) +
-        %(\n  "Assume working folder based on current project" should be off.) +
-        %(\n  "Tools" -> "Options" -> "Command Line Options" tab)
-    end
+    # The GetSetting() is only available on VSS 2005.
+    # VSS 6.0 does not have the GetSetting().
+    begin
+      if @vssdb.GetSetting("Force_Dir") == "Yes"
+        raise VssError,
+          %(\nERROR: VSS setting error.) +
+          %(\n  "Assume working folder based on current project" should be off.) +
+          %(\n  "Tools" -> "Options" -> "Command Line Options" tab)
+      end
 
-    if @vssdb.GetSetting("Force_Prj") == "Yes"
-      raise VssError,
-        %(\nERROR: VSS setting error.) +
-        %(\n  "Assume project based on working folder" should be off.) +
-        %(\n  "Tools" -> "Options" -> "Command Line Options" tab)
+      if @vssdb.GetSetting("Force_Prj") == "Yes"
+        raise VssError,
+          %(\nERROR: VSS setting error.) +
+          %(\n  "Assume project based on working folder" should be off.) +
+          %(\n  "Tools" -> "Options" -> "Command Line Options" tab)
+      end
+    rescue
+      pps "VSS version may be 6.0"
+      pps "Skip validation of the 'Force_Dir' and 'Force_Prj' settings."
     end
   end
 
