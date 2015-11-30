@@ -1098,7 +1098,7 @@ class Vss2xxx
 
     when RUNMODE_CONTINUOUS_MIGRATION
       repodir = { "git" => ".git",
-                  "hg"  => ".ht",
+                  "hg"  => ".hg",
                   "bzr" => ".bzr"}[@vcs]
 
       unless File.exist?(repodir)
@@ -1279,7 +1279,7 @@ class Vss2xxx
     full_migration = (@runmode == RUNMODE_FULL_MIGRATION)
 
     vcs = { "git" => Git.new,
-            "ht"  => Hg.new,
+            "hg"  => Hg.new,
             "bzr" => Bzr.new }[@vcs]
 
     pps_header("Start migration")
