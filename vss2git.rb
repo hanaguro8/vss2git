@@ -2,7 +2,7 @@
 #
 # Author::  Hanaguro
 # License:: MIT License
-# Version:: 1.11
+# Version:: 1.12
 #
 # Copyright (c) <2012-2014>, <Satoshi Hasegawa>
 # All rights reserved.
@@ -32,8 +32,8 @@ require 'time'
 require 'json'
 require 'pp'
 
-VERSION       = "1.11"
-REVISION_DATE = "2014/6/16"
+VERSION       = "1.12"
+REVISION_DATE = "2015/12/06"
 AUTHOR        = "Hanaguro"
 
 #------------------------------------------------------------------------------
@@ -316,7 +316,7 @@ module Vcs
       ex("echo #{MESSAGE_FILE}>>.hgignore")
 
       # initial commit
-      ex("hg add *")
+      ex("hg add")
       commit("", Time.at(0), message)
     end
 
@@ -425,7 +425,7 @@ module Vcs
     # Get latest commit information
     #--------------------------------------------------------------------------
     def latest_commit
-      log = ex("hg log -l 1")
+      log = ex("set LC_ALL=en&hg log -l 1")
 
       ret = {}
       ret[:Commit] = log.scan(/^changeset: *(.*)$/)[0][0]
@@ -1533,14 +1533,13 @@ Usage: #{File.basename $PROGRAM_NAME} -r <runmode> -s <vssdir> -u <user> [-p <pa
                         2: Branching model type 2
                            master:  Development branch
                            product: Production branch
-    -e|--verbose      Verbose mode (0, 1, 2, 3) (default:1)
+    -e|--verbose      Verbose mode (0, 1, 2) (default:1)
                         STDOUT
-                          0-1: Output migration log
-                          2:   + author list
-                          3:   + dump of internal objest (for debug)
+                          0-1: Output migration log + author list
+                          2:   + dump of internal objest (for debug)
                         STDERR
                           0:   No output
-                          1-3: Processing status
+                          1-2: Processing status
     -t|--timeshift    Time to shift (-12 .. 12)
     -w|--workingdir   Path to the root of working folder
     -v|--version      Print version
