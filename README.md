@@ -61,9 +61,9 @@ Usage
                         2: Branching model type 2
                            master:  Development branch
                            product: Production branch
-    -e|--verbose      Verbose mode (0, 1, 2, 3) (default:1)
+    -e|--verbose      Verbose mode (0, 1, 2) (default:1)
                         STDOUT
-                          0-1: Output migration log
+                          0-1: Output migration log + author list
                           2:   + dump of internal objest (for debug)
                         STDERR
                           0:   No output
